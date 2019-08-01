@@ -1,15 +1,17 @@
 import json
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone, time
 from multiprocessing import Pool
+import sys
+
+BASE_URL = "https://{}.contest.atcoder.jp".format(sys.argv[1])
 
 def parse_time(time_str):
     return datetime.strptime(time_str, "%Y/%m/%d %H:%M:%S %z")
 
 def get_result(path):
-    start_time = parse_time("2012/11/04 10:00:00 +0800")
-    url = "https://jag2012autumn.contest.atcoder.jp" + path
+    url = BASE_URL + path
     r = requests.get(url)
     soup = BeautifulSoup(r.text, "html.parser")
     rows = soup.table.find_all("tr")
@@ -17,18 +19,18 @@ def get_result(path):
     ret = {}
     ret["problem"] = rows[0].td.text.strip()[0]
     ret["user"] = rows[1].td.text.strip()
-    create_time = parse_time(rows[2].td.text.strip())
+    create_time = parse_time(rows[2].td.text.strip()).astimezone(tz=timezone(timedelta(hours=8)))
+    start_time = create_time.replace(hour=int(sys.argv[2]), minute=0, second=0)
     ret["time"] = (create_time - start_time).seconds
     ret["is_accepted"] = rows[4].td.span['data-title'] == "Accepted"
 
     return ret
 
-base_url = "https://jag2012autumn.contest.atcoder.jp/submissions/all/{}"
+submission_url = BASE_URL + "/submissions/all/{}"
 
 jobs = []
-#for i in range(55, 82):
-for i in range(55, 82):
-    url = base_url.format(i)
+for i in range(int(sys.argv[3]), int(sys.argv[4])+1):
+    url = submission_url.format(i)
     r = requests.get(url)
     soup = BeautifulSoup(r.text, "html.parser")
     table = soup.table
